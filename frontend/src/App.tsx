@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Dashboard from "./pages/Dashboard";
@@ -30,17 +31,37 @@ function SyncButton() {
 }
 
 export default function App() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const closeSidebar = () => setSidebarOpen(false);
+
   return (
     <div className="layout">
-      <nav className="sidebar">
+      {/* Hamburger button - visible only on mobile */}
+      <button
+        className={`menu-toggle ${sidebarOpen ? "open" : ""}`}
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        aria-label="Toggle menu"
+      >
+        <span />
+        <span />
+        <span />
+      </button>
+
+      {/* Overlay backdrop */}
+      <div
+        className={`sidebar-overlay ${sidebarOpen ? "open" : ""}`}
+        onClick={closeSidebar}
+      />
+
+      <nav className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <h1>finances</h1>
-        <NavLink to="/" end>Dashboard</NavLink>
-        <NavLink to="/transactions">Transactions</NavLink>
-        <NavLink to="/categories">Categories &amp; Rules</NavLink>
-        <NavLink to="/budgets">Budgets</NavLink>
-        <NavLink to="/goals">Goals</NavLink>
-        <NavLink to="/accounts">Accounts</NavLink>
-        <NavLink to="/settings">Settings</NavLink>
+        <NavLink to="/" end onClick={closeSidebar}>Dashboard</NavLink>
+        <NavLink to="/transactions" onClick={closeSidebar}>Transactions</NavLink>
+        <NavLink to="/categories" onClick={closeSidebar}>Categories &amp; Rules</NavLink>
+        <NavLink to="/budgets" onClick={closeSidebar}>Budgets</NavLink>
+        <NavLink to="/goals" onClick={closeSidebar}>Goals</NavLink>
+        <NavLink to="/accounts" onClick={closeSidebar}>Accounts</NavLink>
+        <NavLink to="/settings" onClick={closeSidebar}>Settings</NavLink>
         <SyncButton />
       </nav>
       <main>

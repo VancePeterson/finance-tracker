@@ -31,7 +31,7 @@ export default function Accounts() {
   return (
     <>
       <h2>Accounts</h2>
-      <div className="grid" style={{ gridTemplateColumns: "300px 1fr" }}>
+      <div className="grid grid-2-col" style={{ gridTemplateColumns: "300px 1fr" }}>
         <div className="card">
           <h3>Accounts</h3>
           <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>

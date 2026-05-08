@@ -42,7 +42,7 @@ export default function Transactions() {
     <>
       <h2>Transactions</h2>
       <div className="card" style={{ marginBottom: 16 }}>
-        <div className="row" style={{ alignItems: "flex-end" }}>
+        <div className="row mobile-stack" style={{ alignItems: "flex-end" }}>
           <label>
             <div className="muted" style={{ fontSize: 12 }}>From</div>
             <input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
@@ -97,37 +97,39 @@ export default function Transactions() {
         <div className="muted" style={{ marginBottom: 8 }}>
           {txnsQ.isFetching ? "Loading…" : `${(txnsQ.data ?? []).length} transactions`}
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Merchant / Description</th>
-              <th>Account</th>
-              <th>Category</th>
-              <th className="right">Amount</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {(txnsQ.data ?? []).map((t) => (
-              <Row
-                key={t.id}
-                txn={t}
-                editing={editingId === t.id}
-                onEditToggle={() => setEditingId(editingId === t.id ? null : t.id)}
-                onSaveCategory={(cid) =>
-                  updateTxn.mutate({
-                    id: t.id,
-                    patch: cid === null ? { clear_category: true } : { category_id: cid },
-                  })
-                }
-                onSaveNotes={(notes) =>
-                  updateTxn.mutate({ id: t.id, patch: { notes } })
-                }
-              />
-            ))}
-          </tbody>
-        </table>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Merchant / Description</th>
+                <th>Account</th>
+                <th>Category</th>
+                <th className="right">Amount</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {(txnsQ.data ?? []).map((t) => (
+                <Row
+                  key={t.id}
+                  txn={t}
+                  editing={editingId === t.id}
+                  onEditToggle={() => setEditingId(editingId === t.id ? null : t.id)}
+                  onSaveCategory={(cid) =>
+                    updateTxn.mutate({
+                      id: t.id,
+                      patch: cid === null ? { clear_category: true } : { category_id: cid },
+                    })
+                  }
+                  onSaveNotes={(notes) =>
+                    updateTxn.mutate({ id: t.id, patch: { notes } })
+                  }
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </>
   );

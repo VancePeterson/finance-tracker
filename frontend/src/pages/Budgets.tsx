@@ -91,6 +91,7 @@ export default function Budgets() {
         {budgets.length === 0 ? (
           <div className="muted">No budgets yet. Pick a category above to start.</div>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -114,6 +115,7 @@ export default function Budgets() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </>

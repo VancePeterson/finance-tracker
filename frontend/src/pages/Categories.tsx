@@ -58,7 +58,7 @@ export default function Categories() {
     <>
       <h2>Categories &amp; Rules</h2>
 
-      <div className="grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+      <div className="grid grid-2-col" style={{ gridTemplateColumns: "1fr 1fr" }}>
         <div className="card">
           <h3>Categories</h3>
           <div className="row" style={{ marginBottom: 12 }}>
@@ -88,53 +88,55 @@ export default function Categories() {
             </button>
           </div>
 
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Color</th>
-                <th className="right">Txns</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {(categoriesQ.data ?? []).map((c) => (
-                <tr key={c.id}>
-                  <td>
-                    <input
-                      defaultValue={c.name}
-                      onBlur={(e) => {
-                        if (e.target.value !== c.name)
-                          updateCategory.mutate({ id: c.id, body: { name: e.target.value } });
-                      }}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="color"
-                      defaultValue={c.color ?? "#888888"}
-                      onBlur={(e) =>
-                        updateCategory.mutate({ id: c.id, body: { color: e.target.value } })
-                      }
-                      style={{ width: 50, padding: 0 }}
-                    />
-                  </td>
-                  <td className="amount">{c.transaction_count}</td>
-                  <td>
-                    <button
-                      className="danger"
-                      onClick={() => {
-                        if (confirm(`Delete "${c.name}"? Rules will also be deleted.`))
-                          deleteCategory.mutate(c.id);
-                      }}
-                    >
-                      delete
-                    </button>
-                  </td>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Color</th>
+                  <th className="right">Txns</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(categoriesQ.data ?? []).map((c) => (
+                  <tr key={c.id}>
+                    <td>
+                      <input
+                        defaultValue={c.name}
+                        onBlur={(e) => {
+                          if (e.target.value !== c.name)
+                            updateCategory.mutate({ id: c.id, body: { name: e.target.value } });
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="color"
+                        defaultValue={c.color ?? "#888888"}
+                        onBlur={(e) =>
+                          updateCategory.mutate({ id: c.id, body: { color: e.target.value } })
+                        }
+                        style={{ width: 50, padding: 0 }}
+                      />
+                    </td>
+                    <td className="amount">{c.transaction_count}</td>
+                    <td>
+                      <button
+                        className="danger"
+                        onClick={() => {
+                          if (confirm(`Delete "${c.name}"? Rules will also be deleted.`))
+                            deleteCategory.mutate(c.id);
+                        }}
+                      >
+                        delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div className="card">
@@ -179,68 +181,70 @@ export default function Categories() {
             </button>
           </div>
 
-          <table>
-            <thead>
-              <tr>
-                <th>Pattern</th>
-                <th>Category</th>
-                <th className="right">Priority</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {(rulesQ.data ?? []).map((r) => (
-                <tr key={r.id}>
-                  <td>
-                    <input
-                      defaultValue={r.pattern}
-                      onBlur={(e) => {
-                        if (e.target.value !== r.pattern)
-                          updateRule.mutate({ id: r.id, body: { pattern: e.target.value } });
-                      }}
-                      style={{ width: "100%" }}
-                    />
-                  </td>
-                  <td>
-                    <select
-                      defaultValue={r.category_id}
-                      onChange={(e) =>
-                        updateRule.mutate({
-                          id: r.id,
-                          body: { category_id: Number(e.target.value) },
-                        })
-                      }
-                    >
-                      {(categoriesQ.data ?? []).map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      defaultValue={r.priority}
-                      onBlur={(e) =>
-                        updateRule.mutate({
-                          id: r.id,
-                          body: { priority: Number(e.target.value) },
-                        })
-                      }
-                      style={{ width: 60, textAlign: "right" }}
-                    />
-                  </td>
-                  <td>
-                    <button
-                      className="danger"
-                      onClick={() => deleteRule.mutate(r.id)}
-                    >
-                      delete
-                    </button>
-                  </td>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Pattern</th>
+                  <th>Category</th>
+                  <th className="right">Priority</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(rulesQ.data ?? []).map((r) => (
+                  <tr key={r.id}>
+                    <td>
+                      <input
+                        defaultValue={r.pattern}
+                        onBlur={(e) => {
+                          if (e.target.value !== r.pattern)
+                            updateRule.mutate({ id: r.id, body: { pattern: e.target.value } });
+                        }}
+                        style={{ width: "100%" }}
+                      />
+                    </td>
+                    <td>
+                      <select
+                        defaultValue={r.category_id}
+                        onChange={(e) =>
+                          updateRule.mutate({
+                            id: r.id,
+                            body: { category_id: Number(e.target.value) },
+                          })
+                        }
+                      >
+                        {(categoriesQ.data ?? []).map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        defaultValue={r.priority}
+                        onBlur={(e) =>
+                          updateRule.mutate({
+                            id: r.id,
+                            body: { priority: Number(e.target.value) },
+                          })
+                        }
+                        style={{ width: 60, textAlign: "right" }}
+                      />
+                    </td>
+                    <td>
+                      <button
+                        className="danger"
+                        onClick={() => deleteRule.mutate(r.id)}
+                      >
+                        delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </>

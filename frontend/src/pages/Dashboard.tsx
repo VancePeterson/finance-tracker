@@ -121,12 +121,12 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", marginBottom: 16 }}>
+      <div className="grid grid-2-col" style={{ gridTemplateColumns: "1fr 1fr", marginBottom: 16 }}>
         <GoalsSummary />
         <BudgetsSummary />
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", marginBottom: 16 }}>
+      <div className="grid grid-2-col" style={{ gridTemplateColumns: "1fr 1fr", marginBottom: 16 }}>
         <div className="card">
           <h3>Spending by category</h3>
           <div style={{ height: 320 }}>
@@ -153,32 +153,34 @@ export default function Dashboard() {
         </div>
         <div className="card">
           <h3>Top categories</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th className="right">Spent</th>
-                <th className="right">Txns</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cats.map((c) => (
-                <tr key={c.category_id ?? "uncat"}>
-                  <td>
-                    <span className="pill">
-                      <span
-                        className="dot"
-                        style={{ background: c.color ?? "#64748b" }}
-                      />
-                      {c.category_name}
-                    </span>
-                  </td>
-                  <td className="amount">{fmtUSD(c.total)}</td>
-                  <td className="amount">{c.transaction_count}</td>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th className="right">Spent</th>
+                  <th className="right">Txns</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {cats.map((c) => (
+                  <tr key={c.category_id ?? "uncat"}>
+                    <td>
+                      <span className="pill">
+                        <span
+                          className="dot"
+                          style={{ background: c.color ?? "#64748b" }}
+                        />
+                        {c.category_name}
+                      </span>
+                    </td>
+                    <td className="amount">{fmtUSD(c.total)}</td>
+                    <td className="amount">{c.transaction_count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -187,30 +189,32 @@ export default function Dashboard() {
           <h3 style={{ margin: 0 }}>Recent transactions</h3>
           <Link to="/transactions">view all →</Link>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Merchant</th>
-              <th>Account</th>
-              <th>Category</th>
-              <th className="right">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recent.map((t) => (
-              <tr key={t.id}>
-                <td>{fmtDateLocal(t.posted)}</td>
-                <td>{t.payee || t.description || "—"}</td>
-                <td className="muted">{t.account_name}</td>
-                <td>{t.category_name ?? <span className="muted">—</span>}</td>
-                <td className={"amount " + (t.amount < 0 ? "neg" : "pos")}>
-                  {fmtUSD(t.amount)}
-                </td>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Merchant</th>
+                <th>Account</th>
+                <th>Category</th>
+                <th className="right">Amount</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {recent.map((t) => (
+                <tr key={t.id}>
+                  <td>{fmtDateLocal(t.posted)}</td>
+                  <td>{t.payee || t.description || "—"}</td>
+                  <td className="muted">{t.account_name}</td>
+                  <td>{t.category_name ?? <span className="muted">—</span>}</td>
+                  <td className={"amount " + (t.amount < 0 ? "neg" : "pos")}>
+                    {fmtUSD(t.amount)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </>
   );

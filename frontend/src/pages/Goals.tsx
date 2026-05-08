@@ -45,7 +45,7 @@ export default function Goals() {
 
       {showForm && (
         <div className="card" style={{ marginBottom: 16 }}>
-          <div className="grid" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 50px auto", gap: 12, alignItems: "end" }}>
+          <div className="row mobile-stack" style={{ gap: 12, alignItems: "end", flexWrap: "wrap" }}>
             <label>
               <div className="muted" style={{ fontSize: 12 }}>Name</div>
               <input value={name} onChange={(e) => setName(e.target.value)} />

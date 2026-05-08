@@ -2,13 +2,16 @@
 # Bootstrap finances-web on a fresh Ubuntu LXC.
 # Idempotent: safe to re-run.
 #
-# Assumes:
-#   * running as root
-#   * this repo is cloned at /root/projects/personal/finances-web
+# Auto-detects its own location, so you can clone the repo anywhere
+# (e.g. ~/finance-tracker, /opt/finance-tracker, /srv/finance-tracker).
+# Run as root.
 
 set -euo pipefail
 
-WEB_DIR="/root/projects/personal/finances-web"
+WEB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SERVICE_USER="${SERVICE_USER:-root}"
+
+echo "==> Installing into $WEB_DIR (service user: $SERVICE_USER)"
 
 echo "==> Updating apt and installing prerequisites"
 apt-get update -qq
@@ -45,10 +48,28 @@ cd "$WEB_DIR/frontend"
 npm install
 npm run build
 
-echo "==> Installing systemd unit"
-# The web app schedules its own syncs (Settings → General). The
-# finances-sync.service in systemd/ is left for opt-in only; not enabled here.
-install -m 0644 "$WEB_DIR/systemd/finances-web.service" /etc/systemd/system/
+echo "==> Writing systemd unit"
+# Generate the .service from a template so the path matches wherever
+# the repo was cloned. The static copy in systemd/ remains a reference.
+cat > /etc/systemd/system/finances-web.service <<UNIT
+[Unit]
+Description=finances-web — local SimpleFIN dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=$SERVICE_USER
+Group=$SERVICE_USER
+WorkingDirectory=$WEB_DIR
+Environment=PORT=8765
+EnvironmentFile=-/etc/finances-web/claude.env
+ExecStart=/usr/local/bin/uv run uvicorn app.main:app --host 0.0.0.0 --port 8765
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+UNIT
 
 mkdir -p /etc/finances-web
 touch /etc/finances-web/claude.env
@@ -62,5 +83,5 @@ echo "==> Done."
 echo "    Web UI:  http://$(hostname -I | awk '{print $1}'):8765/"
 echo "    Logs:    journalctl -u finances-web -f"
 echo
-echo "    Next: open the web UI, paste your SimpleFIN setup token in Settings"
-echo "    (or edit $WEB_DIR/.env directly), then click 'Sync now'."
+echo "    Next: open the web UI, paste your SimpleFIN setup token in"
+echo "    Settings → General, then click Connect & sync."

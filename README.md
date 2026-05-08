@@ -73,25 +73,37 @@ uv run uvicorn app.main:app --port 8765
 
 ## Deploying to an Ubuntu LXC
 
+Clone the repo wherever you like — `setup-lxc.sh` auto-detects its own path
+and bakes that into the systemd unit.
+
 ```bash
 # On the LXC, as root:
-mkdir -p /root/projects/personal
-cd /root/projects/personal
-git clone <this-repo-url> finances-web
-cd finances-web
+git clone https://github.com/VancePeterson/finance-tracker.git
+cd finance-tracker
 bash scripts/setup-lxc.sh
 ```
 
+(If you want a different on-disk name, just `git clone … finance-tracker my-name`
+and `cd` there instead.)
+
 The script installs Node 20, `uv`, the `claude` CLI, runs `uv sync`, builds the
-frontend, installs the systemd unit, and starts the service. Then:
+frontend, generates a systemd unit pointing at the cloned directory, and starts
+the service. To run as a non-root user, set `SERVICE_USER` first:
+
+```bash
+SERVICE_USER=finances bash scripts/setup-lxc.sh
+```
+
+Once the service is up:
 
 1. Open `http://<lxc-ip>:8765/`.
 2. **Settings → General → SimpleFIN connection**: paste your setup token
    (from [beta-bridge.simplefin.org](https://beta-bridge.simplefin.org/)) and
    click **Connect & sync**. Then pick a sync interval below.
 3. **Settings → Claude** *(optional)*: click **Login with Claude.ai** to
-   authenticate the in-app assistant. Re-deploy or `systemctl restart
-   finances-web` to pick up the OAuth token everywhere.
+   authenticate the in-app assistant. After login completes the token is
+   written to `/etc/finances-web/claude.env`, which the systemd unit reads
+   on next start (`systemctl restart finances-web`).
 
 ## Environment variables
 
@@ -109,7 +121,7 @@ Most users won't need to touch these — defaults work. Override in
 ## Project layout
 
 ```
-finances-web/
+finance-tracker/           ← cloned dir name; repo on GitHub is finance-tracker
 ├── sync.py                ← SimpleFIN fetcher (uses app.db for schema)
 ├── .env                   ← SimpleFIN credentials (gitignored)
 ├── finances.db            ← SQLite (gitignored)

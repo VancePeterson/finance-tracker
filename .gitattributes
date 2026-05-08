@@ -1,0 +1,21 @@
+# Ensure consistent line endings
+* text=auto
+
+# Shell scripts must have LF endings
+*.sh text eol=lf
+
+# Python files
+*.py text eol=lf
+
+# SQL files
+*.sql text eol=lf
+
+# Config files
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
+
+# Systemd units
+*.service text eol=lf
+*.timer text eol=lf

@@ -18,6 +18,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from ..config import DB_PATH, REPO_ROOT
+from ..db import connect
 
 router = APIRouter(prefix="/api", tags=["ask"])
 
@@ -33,6 +34,18 @@ class AskPayload(BaseModel):
 
 def _claude_binary() -> str:
     return shutil.which("claude") or "claude"
+
+
+def _get_token_from_db() -> str | None:
+    """Read the Claude OAuth token from the database."""
+    try:
+        with connect() as conn:
+            row = conn.execute(
+                "SELECT value FROM app_settings WHERE key = 'claude_oauth_token'"
+            ).fetchone()
+            return row["value"] if row else None
+    except Exception:
+        return None
 
 
 def _spawn_claude(prompt: str, *, allowed_tools: str | None, timeout: int) -> dict:
@@ -51,6 +64,11 @@ def _spawn_claude(prompt: str, *, allowed_tools: str | None, timeout: int) -> di
     env = os.environ.copy()
     # Ensure sqlquery resolves to the right DB even if the symlink is missing.
     env.setdefault("FINANCES_DB_PATH", str(DB_PATH))
+
+    # Load token from database so restarts aren't needed after login
+    token = _get_token_from_db()
+    if token:
+        env["CLAUDE_CODE_OAUTH_TOKEN"] = token
 
     started = time.monotonic()
     try:

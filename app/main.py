@@ -15,6 +15,7 @@ from .routes import (
     budgets,
     categories,
     claude_auth,
+    data_import,
     export,
     goals,
     rules,
@@ -63,6 +64,7 @@ app.include_router(goals.router)
 app.include_router(budgets.router)
 app.include_router(settings.router)
 app.include_router(export.router)
+app.include_router(data_import.router)
 app.include_router(simplefin.router)
 
 

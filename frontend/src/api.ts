@@ -170,6 +170,21 @@ export const api = {
     delete: (id: number) =>
       request<void>(`/api/budgets/${id}`, { method: "DELETE" }),
   },
+  importDatabase: async (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/import/database", { method: "POST", body: fd });
+    if (!res.ok) {
+      const detail = await res.text();
+      throw new Error(`${res.status} ${res.statusText}: ${detail}`);
+    }
+    return res.json() as Promise<{
+      ok: boolean;
+      imported_accounts: number;
+      imported_transactions: number;
+      backup_path: string | null;
+    }>;
+  },
   ask: (question: string) =>
     request<{ answer: string; duration_ms: number }>("/api/ask", {
       method: "POST",

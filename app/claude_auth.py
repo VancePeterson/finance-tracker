@@ -8,7 +8,7 @@ feed the user-pasted code back through stdin and capture the token.
 The token is stored in:
   * the SQLite ``app_settings`` table (UI source of truth)
   * a 0600 file at $HOME/.claude/oauth_token
-  * /etc/finances-web/claude.env (so the systemd service picks it up)
+  * /etc/finance-tracker/claude.env (so the systemd service picks it up)
   * a one-line export in $HOME/.bashrc (so SSH sessions inherit it)
 
 Failures writing the system files (e.g. running as a non-privileged user during
@@ -36,11 +36,11 @@ URL_RE = re.compile(r"https?://\S+")
 ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07")
 
 CLAUDE_BINARY = shutil.which("claude") or "claude"
-ENV_FILE = Path("/etc/finances-web/claude.env")
+ENV_FILE = Path("/etc/finance-tracker/claude.env")
 TOKEN_FILE = Path(os.path.expanduser("~/.claude/oauth_token"))
 BASHRC = Path(os.path.expanduser("~/.bashrc"))
-BASHRC_MARKER = "# >>> finances-web claude oauth >>>"
-BASHRC_END = "# <<< finances-web claude oauth <<<"
+BASHRC_MARKER = "# >>> finance-tracker claude oauth >>>"
+BASHRC_END = "# <<< finance-tracker claude oauth <<<"
 
 
 class LoginSession:

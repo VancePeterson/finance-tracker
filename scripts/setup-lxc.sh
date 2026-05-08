@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bootstrap finances-web on a fresh Ubuntu LXC.
+# Bootstrap finance-tracker on a fresh Ubuntu LXC.
 # Idempotent: safe to re-run.
 #
 # Auto-detects its own location, so you can clone the repo anywhere
@@ -51,9 +51,9 @@ npm run build
 echo "==> Writing systemd unit"
 # Generate the .service from a template so the path matches wherever
 # the repo was cloned. The static copy in systemd/ remains a reference.
-cat > /etc/systemd/system/finances-web.service <<UNIT
+cat > /etc/systemd/system/finance-tracker.service <<UNIT
 [Unit]
-Description=finances-web — local SimpleFIN dashboard
+Description=finance-tracker — local SimpleFIN dashboard
 After=network.target
 
 [Service]
@@ -62,7 +62,7 @@ User=$SERVICE_USER
 Group=$SERVICE_USER
 WorkingDirectory=$WEB_DIR
 Environment=PORT=8765
-EnvironmentFile=-/etc/finances-web/claude.env
+EnvironmentFile=-/etc/finance-tracker/claude.env
 ExecStart=/usr/local/bin/uv run uvicorn app.main:app --host 0.0.0.0 --port 8765
 Restart=on-failure
 RestartSec=5
@@ -71,17 +71,17 @@ RestartSec=5
 WantedBy=multi-user.target
 UNIT
 
-mkdir -p /etc/finances-web
-touch /etc/finances-web/claude.env
-chmod 0600 /etc/finances-web/claude.env
+mkdir -p /etc/finance-tracker
+touch /etc/finance-tracker/claude.env
+chmod 0600 /etc/finance-tracker/claude.env
 
 systemctl daemon-reload
-systemctl enable --now finances-web.service
+systemctl enable --now finance-tracker.service
 
 echo
 echo "==> Done."
 echo "    Web UI:  http://$(hostname -I | awk '{print $1}'):8765/"
-echo "    Logs:    journalctl -u finances-web -f"
+echo "    Logs:    journalctl -u finance-tracker -f"
 echo
 echo "    Next: open the web UI, paste your SimpleFIN setup token in"
 echo "    Settings → General, then click Connect & sync."

@@ -17,11 +17,13 @@ local dev) degrade to a warning — the DB row is always authoritative.
 
 from __future__ import annotations
 
+import fcntl
 import os
 import pty
 import re
 import select
 import shutil
+import struct
 import subprocess
 import sqlite3
 import termios
@@ -31,6 +33,7 @@ from pathlib import Path
 from typing import Optional
 
 URL_RE = re.compile(r"https?://\S+")
+ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07")
 
 CLAUDE_BINARY = shutil.which("claude") or "claude"
 ENV_FILE = Path("/etc/finances-web/claude.env")
@@ -100,6 +103,11 @@ class LoginSession:
             attrs = termios.tcgetattr(slave)
             attrs[3] &= ~termios.ECHO  # lflag
             termios.tcsetattr(slave, termios.TCSANOW, attrs)
+            # Set a very wide terminal so long auth URLs don't get hard-wrapped.
+            # An ed25519 OAuth URL with redirect_uri + state + code_challenge
+            # easily runs ~400 chars; default 80-col wrapping truncates it and
+            # the auth server returns "Missing redirect_uri parameter".
+            fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 50, 4096, 0, 0))
 
             self.proc = subprocess.Popen(
                 [CLAUDE_BINARY, "setup-token"],
@@ -117,10 +125,16 @@ class LoginSession:
             chunk = self._read_available(timeout=0.5)
             if chunk:
                 self.buffer += chunk
-                m = URL_RE.search(self.buffer)
+                # The wide-PTY setup prevents the URL from being hard-wrapped,
+                # so URL_RE (\S+) reliably stops at the trailing newline.
+                # Strip any ANSI escapes claude might emit before searching.
+                clean = ANSI_RE.sub("", self.buffer)
+                m = URL_RE.search(clean)
                 if m:
-                    self.url = m.group(0).rstrip(".,)\r\n")
-                    return self.url
+                    candidate = m.group(0).rstrip(".,)\r\n")
+                    if "redirect_uri=" in candidate or len(candidate) > 200:
+                        self.url = candidate
+                        return self.url
             elif self.proc.poll() is not None:  # type: ignore[union-attr]
                 raise RuntimeError(
                     "`claude setup-token` exited before printing a URL.\n"

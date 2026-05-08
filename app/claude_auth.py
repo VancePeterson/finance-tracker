@@ -198,8 +198,30 @@ _session = LoginSession()
 
 
 def _extract_token(text: str) -> Optional[str]:
-    """The token is a long opaque string. Pull it from any line that looks
-    like one (no whitespace, reasonably long, not a URL)."""
+    """Extract the OAuth token from setup-token output.
+
+    The token starts with 'sk-ant-' and may be wrapped across lines.
+    We remove all whitespace to handle terminal line wrapping.
+    """
+    # First, try to find a token pattern (sk-ant-oat01-...)
+    # Remove ANSI escapes and normalize whitespace
+    clean = ANSI_RE.sub("", text)
+
+    # Look for the token pattern - it starts with sk-ant- and is ~100+ chars
+    import re
+    # The token might be split across lines, so join everything and search
+    # Remove all whitespace first to handle wrapped lines
+    collapsed = re.sub(r'\s+', ' ', clean)
+
+    # Look for sk-ant-oat followed by base64-ish characters
+    token_match = re.search(r'(sk-ant-oat\S+)', collapsed)
+    if token_match:
+        # Clean any remaining whitespace from the token itself
+        token = re.sub(r'\s', '', token_match.group(1))
+        if len(token) >= 50:  # Tokens are quite long
+            return token
+
+    # Fallback: look for any long string without spaces (old behavior)
     for line in reversed(text.splitlines()):
         line = line.strip()
         if not line or " " in line or line.startswith("http"):

@@ -1,4 +1,4 @@
-# finances-web
+# finance-tracker
 
 A self-hosted personal finance dashboard. Pulls transactions from your banks via
 [SimpleFIN](https://beta-bridge.simplefin.org), stores them locally in SQLite,

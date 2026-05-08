@@ -262,6 +262,35 @@ def clear_token(conn: sqlite3.Connection) -> dict:
     return {"warnings": warnings}
 
 
+def _credentials_file_has_token() -> bool:
+    """Look for *real* token content, not just an empty stub. The `claude`
+    installer (and any prior aborted login) can leave behind ~/.claude/ or an
+    empty credentials file; existence alone isn't enough."""
+    cred_dir = os.environ.get("CLAUDE_CONFIG_DIR")
+    cred_path = (
+        Path(cred_dir) / ".credentials.json"
+        if cred_dir
+        else Path(os.path.expanduser("~/.claude/.credentials.json"))
+    )
+    if not cred_path.exists():
+        return False
+    try:
+        if cred_path.stat().st_size < 40:
+            return False
+        text = cred_path.read_text(errors="replace")
+    except OSError:
+        return False
+    return any(s in text for s in ("accessToken", "access_token", "refreshToken", "oauthToken"))
+
+
+def _env_token_set() -> Optional[str]:
+    for k in ("ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"):
+        v = os.environ.get(k, "").strip()
+        if v:
+            return k
+    return None
+
+
 def get_status(conn: sqlite3.Connection) -> dict:
     """Report whether Claude Code has *any* working credential, regardless of
     whether it came from this app's login UI, a manual `claude /login`, or an
@@ -271,17 +300,8 @@ def get_status(conn: sqlite3.Connection) -> dict:
         "SELECT updated_at FROM app_settings WHERE key = 'claude_oauth_token'"
     ).fetchone()
     db_authenticated = row is not None
-
-    cred_dir = os.environ.get("CLAUDE_CONFIG_DIR")
-    cred_path = (
-        Path(cred_dir) / ".credentials.json"
-        if cred_dir
-        else Path(os.path.expanduser("~/.claude/.credentials.json"))
-    )
-    has_creds_file = cred_path.exists()
-
-    env_keys = ("ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN")
-    env_var_set = next((k for k in env_keys if os.environ.get(k)), None)
+    env_var_set = _env_token_set()
+    has_creds_file = _credentials_file_has_token()
 
     if db_authenticated:
         source = "app"

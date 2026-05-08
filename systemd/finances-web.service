@@ -1,0 +1,18 @@
+[Unit]
+Description=finances-web — local SimpleFIN dashboard
+After=network.target
+
+[Service]
+Type=simple
+# Adjust User/Group/WorkingDirectory if you don't run as root.
+User=root
+Group=root
+WorkingDirectory=/root/projects/personal/finances-web
+Environment=PORT=8765
+EnvironmentFile=-/etc/finances-web/claude.env
+ExecStart=/usr/local/bin/uv run uvicorn app.main:app --host 0.0.0.0 --port 8765
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

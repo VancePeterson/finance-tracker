@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Grep",
+      "Glob",
+      "Bash(./sqlquery:*)",
+      "WebFetch",
+      "WebSearch"
+    ],
+    "deny": [
+      "Edit",
+      "Write",
+      "NotebookEdit",
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "Bash(cp:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(git:*)",
+      "Bash(sed:*)",
+      "Bash(awk:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(node:*)",
+      "Bash(npm:*)",
+      "Bash(uv:*)",
+      "Bash(sqlite3:*)",
+      "Bash(claude:*)"
+    ]
+  }
+}

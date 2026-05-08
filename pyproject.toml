@@ -1,0 +1,13 @@
+[project]
+name = "finances-web"
+version = "0.1.0"
+description = "Web GUI for the SimpleFIN-backed finances database."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "pydantic>=2.7",
+]
+
+[tool.uv]
+dev-dependencies = []

@@ -1,0 +1,10 @@
+[Unit]
+Description=finances — pull latest SimpleFIN transactions
+After=network.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/root/projects/personal/finances-web
+ExecStart=/usr/local/bin/uv run sync.py

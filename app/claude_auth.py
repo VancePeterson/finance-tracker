@@ -149,8 +149,10 @@ class LoginSession:
         )
 
     def complete(self, code: str) -> str:
-        # The Ink-based TUI puts stdin in raw mode (ICRNL disabled) and treats
-        # \r as Enter — \n is buffered as a literal char and never submits.
+        # The TUI's input field accepts the code only when wrapped in bracketed
+        # paste markers (\x1b[200~ ... \x1b[201~). Without them the chars get
+        # buffered and Enter never submits — verified empirically against
+        # claude 2.1.133. Send a CR after to trigger the OAuth exchange.
         cred_path = _credentials_path()
         cred_initial_mtime = (
             cred_path.stat().st_mtime if cred_path.exists() else 0.0
@@ -167,7 +169,8 @@ class LoginSession:
                     "No active login session. Start one first. "
                     f"(state: {state}; output: {self.buffer[:300] or '(empty)'})"
                 )
-            os.write(self.master_fd, (code.strip() + "\r").encode())
+            payload = f"\x1b[200~{code.strip()}\x1b[201~\r".encode()
+            os.write(self.master_fd, payload)
 
         # Watch for credentials.json to update — that's the real success
         # signal. The TUI commonly lingers after auth waiting for a keypress

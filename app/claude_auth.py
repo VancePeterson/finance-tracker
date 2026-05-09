@@ -299,10 +299,17 @@ def clear_token(conn: sqlite3.Connection) -> dict:
 
 
 def _credentials_file_has_token() -> bool:
-    """Look for *real* token content, not just an empty stub. The `claude`
-    installer (and any prior aborted login) can leave behind ~/.claude/ or an
-    empty credentials file; existence alone isn't enough."""
-    cred_path = _credentials_path()
+    """Look for *real* token content from a `claude /login` setup, not just
+    an empty stub. The `claude` installer (and any prior aborted login) can
+    leave behind ~/.claude/ or an empty credentials file; existence alone
+    isn't enough. Note: `claude setup-token` does NOT write this file —
+    it's only populated by the interactive `/login` flow."""
+    cred_dir = os.environ.get("CLAUDE_CONFIG_DIR")
+    cred_path = (
+        Path(cred_dir) / ".credentials.json"
+        if cred_dir
+        else Path(os.path.expanduser("~/.claude/.credentials.json"))
+    )
     if not cred_path.exists():
         return False
     try:

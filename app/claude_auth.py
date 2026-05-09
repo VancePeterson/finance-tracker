@@ -1,11 +1,14 @@
 """Claude Code OAuth login flow, driven from the web UI.
 
 We spawn ``claude setup-token`` in a PTY, scrape the auth URL from its TUI
-output, and feed the user-pasted auth code back in through stdin. On success
-the CLI writes the long-lived token to ``~/.claude/.credentials.json``; we
-read it back from there. (Earlier CLI versions printed the token to stdout,
-but the 2.x TUI masks input as ``*`` and redraws via ANSI cursor moves, so
-stdout cannot be scraped reliably.)
+output, and feed the user-pasted ``code#state`` back in through stdin. The
+input has to be wrapped in xterm bracketed-paste markers (\\x1b[200~ /
+\\x1b[201~) and submitted with a CR — Ink's raw-mode stdin doesn't treat
+plain typed chars as a paste, and ICRNL translation is bypassed. After a
+successful exchange the CLI prints the long-lived token (``sk-ant-oat01-…``)
+on its own line; we pull it out of the captured PTY output. The CLI does
+*not* persist credentials anywhere — printing is the entire delivery
+mechanism. Behavior verified against claude 2.1.133.
 
 The token is mirrored to:
   * the SQLite ``app_settings`` table (UI source of truth)
@@ -20,7 +23,6 @@ user during local dev) degrade to a warning — the DB row is authoritative.
 from __future__ import annotations
 
 import fcntl
-import json
 import os
 import pty
 import re
@@ -153,11 +155,6 @@ class LoginSession:
         # paste markers (\x1b[200~ ... \x1b[201~). Without them the chars get
         # buffered and Enter never submits — verified empirically against
         # claude 2.1.133. Send a CR after to trigger the OAuth exchange.
-        cred_path = _credentials_path()
-        cred_initial_mtime = (
-            cred_path.stat().st_mtime if cred_path.exists() else 0.0
-        )
-
         with self.lock:
             if (
                 not self.proc
@@ -172,31 +169,31 @@ class LoginSession:
             payload = f"\x1b[200~{code.strip()}\x1b[201~\r".encode()
             os.write(self.master_fd, payload)
 
-        # Watch for credentials.json to update — that's the real success
-        # signal. The TUI commonly lingers after auth waiting for a keypress
-        # to dismiss, so we don't depend on the subprocess exiting.
+        # On success setup-token prints `sk-ant-oat01-...` on its own line
+        # (after a "Long-lived authentication token created successfully!"
+        # banner). Stream output and pull the token out as soon as we see it
+        # — the TUI may linger before exiting, so don't wait for that.
         out = self.buffer
-        deadline = time.monotonic() + 30
-        succeeded = False
-        while time.monotonic() < deadline and self.proc.poll() is None:
+        deadline = time.monotonic() + 60
+        token: Optional[str] = None
+        while time.monotonic() < deadline:
             chunk = self._read_available(timeout=0.25)
             if chunk:
                 out += chunk
-            if cred_path.exists() and cred_path.stat().st_mtime > cred_initial_mtime:
-                # Give the writer a beat to finish; the file may be replaced
-                # via rename and we want the new contents stable.
-                time.sleep(0.3)
-                succeeded = True
+                token = _find_token(out)
+                if token:
+                    break
+            if self.proc.poll() is not None:
+                # Drain anything left in the PTY before giving up.
+                for _ in range(10):
+                    c = self._read_available(timeout=0.1)
+                    if not c:
+                        break
+                    out += c
+                token = token or _find_token(out)
                 break
 
-        # Drain any final output, then tear down the subprocess regardless
-        # of whether it would have exited on its own.
-        for _ in range(10):
-            chunk = self._read_available(timeout=0.1)
-            if not chunk:
-                break
-            out += chunk
-
+        # Tear down regardless of how we got here.
         if self.proc.poll() is None:
             try:
                 self.proc.terminate()
@@ -215,69 +212,37 @@ class LoginSession:
                 pass
             self.master_fd = None
 
-        token = _read_token_from_credentials()
         if token:
             return token
 
         rc = self.proc.returncode
-        hint = (
-            "credentials.json was not updated — the auth code may be wrong, "
-            "expired, or already used. Try logging in again with a fresh code."
-            if not succeeded
-            else "credentials.json was updated but did not contain a recognizable token."
-        )
         raise RuntimeError(
-            f"`claude setup-token` did not yield a usable token (rc={rc}). "
-            f"{hint}\n"
-            f"--- output ---\n{ANSI_RE.sub('', out)[:1000] or '(empty)'}"
+            f"`claude setup-token` did not print a token (rc={rc}). "
+            "Auth code may be wrong, expired, or already used; "
+            "try logging in again with a fresh code.\n"
+            f"--- output ---\n{ANSI_RE.sub('', out)[:1500] or '(empty)'}"
         )
 
 
 _session = LoginSession()
 
 
-def _credentials_path() -> Path:
-    cred_dir = os.environ.get("CLAUDE_CONFIG_DIR")
-    return (
-        Path(cred_dir) / ".credentials.json"
-        if cred_dir
-        else Path(os.path.expanduser("~/.claude/.credentials.json"))
-    )
+# claude OAuth tokens are long base64-url-ish strings prefixed with sk-ant-oat.
+# Real samples are ~100 chars; we require ≥ 50 to filter out e.g. log-line
+# fragments. The character class excludes whitespace (so we stop at line ends)
+# and most punctuation that would never appear inside a token.
+TOKEN_RE = re.compile(r"sk-ant-oat[A-Za-z0-9_\-]{40,}")
 
 
-def _read_token_from_credentials() -> Optional[str]:
-    """Pull the OAuth token from claude CLI's credentials file.
-
-    Walks the JSON recursively rather than hard-coding a key path, since the
-    schema has shifted between CLI versions. Any string value that looks like
-    a Claude OAuth token (``sk-ant-oat...``, ≥ 50 chars) wins.
-    """
-    cred_path = _credentials_path()
-    if not cred_path.exists():
+def _find_token(buf: str) -> Optional[str]:
+    """Pull a Claude OAuth token out of accumulated PTY output. Returns the
+    longest match — the TUI may have echoed a fragment-then-redraw, but the
+    final clean print of the full token is the one we want."""
+    clean = ANSI_RE.sub("", buf)
+    matches = TOKEN_RE.findall(clean)
+    if not matches:
         return None
-    try:
-        data = json.loads(cred_path.read_text())
-    except (OSError, json.JSONDecodeError):
-        return None
-
-    def walk(node) -> Optional[str]:
-        if isinstance(node, str):
-            if node.startswith("sk-ant-oat") and len(node) >= 50:
-                return node
-            return None
-        if isinstance(node, dict):
-            for v in node.values():
-                t = walk(v)
-                if t:
-                    return t
-        elif isinstance(node, list):
-            for v in node:
-                t = walk(v)
-                if t:
-                    return t
-        return None
-
-    return walk(data)
+    return max(matches, key=len)
 
 
 # --- persistence ----------------------------------------------------------------

@@ -1,23 +1,26 @@
 """Claude Code OAuth login flow, driven from the web UI.
 
-Claude Code's `setup-token` command performs the same browser OAuth flow as the
-interactive `/login`, but reads the auth code from stdin and writes the resulting
-1-year token to stdout. We spawn it as a subprocess, scrape the auth URL, then
-feed the user-pasted code back through stdin and capture the token.
+We spawn ``claude setup-token`` in a PTY, scrape the auth URL from its TUI
+output, and feed the user-pasted auth code back in through stdin. On success
+the CLI writes the long-lived token to ``~/.claude/.credentials.json``; we
+read it back from there. (Earlier CLI versions printed the token to stdout,
+but the 2.x TUI masks input as ``*`` and redraws via ANSI cursor moves, so
+stdout cannot be scraped reliably.)
 
-The token is stored in:
+The token is mirrored to:
   * the SQLite ``app_settings`` table (UI source of truth)
   * a 0600 file at $HOME/.claude/oauth_token
   * /etc/finance-tracker/claude.env (so the systemd service picks it up)
   * a one-line export in $HOME/.bashrc (so SSH sessions inherit it)
 
-Failures writing the system files (e.g. running as a non-privileged user during
-local dev) degrade to a warning — the DB row is always authoritative.
+Failures writing the mirrored locations (e.g. running as a non-privileged
+user during local dev) degrade to a warning — the DB row is authoritative.
 """
 
 from __future__ import annotations
 
 import fcntl
+import json
 import os
 import pty
 import re
@@ -185,11 +188,21 @@ class LoginSession:
                 pass
             self.master_fd = None
 
-        token = _extract_token(out)
+        rc = self.proc.returncode
+        if rc != 0:
+            raise RuntimeError(
+                f"`claude setup-token` exited with code {rc}. "
+                "The auth code may be wrong or expired.\n"
+                f"--- output ---\n{ANSI_RE.sub('', out)[:1000] or '(empty)'}"
+            )
+
+        token = _read_token_from_credentials()
         if not token:
             raise RuntimeError(
-                "`claude setup-token` did not return a token.\n"
-                f"--- output ---\n{out or '(empty)'}"
+                "`claude setup-token` succeeded but no Claude OAuth token was "
+                f"found in {_credentials_path()}. The CLI's credential storage "
+                "format may have changed.\n"
+                f"--- output ---\n{ANSI_RE.sub('', out)[:1000] or '(empty)'}"
             )
         return token
 
@@ -197,38 +210,48 @@ class LoginSession:
 _session = LoginSession()
 
 
-def _extract_token(text: str) -> Optional[str]:
-    """Extract the OAuth token from setup-token output.
+def _credentials_path() -> Path:
+    cred_dir = os.environ.get("CLAUDE_CONFIG_DIR")
+    return (
+        Path(cred_dir) / ".credentials.json"
+        if cred_dir
+        else Path(os.path.expanduser("~/.claude/.credentials.json"))
+    )
 
-    The token starts with 'sk-ant-' and may be wrapped across lines.
-    We remove all whitespace to handle terminal line wrapping.
+
+def _read_token_from_credentials() -> Optional[str]:
+    """Pull the OAuth token from claude CLI's credentials file.
+
+    Walks the JSON recursively rather than hard-coding a key path, since the
+    schema has shifted between CLI versions. Any string value that looks like
+    a Claude OAuth token (``sk-ant-oat...``, ≥ 50 chars) wins.
     """
-    # First, try to find a token pattern (sk-ant-oat01-...)
-    # Remove ANSI escapes and normalize whitespace
-    clean = ANSI_RE.sub("", text)
+    cred_path = _credentials_path()
+    if not cred_path.exists():
+        return None
+    try:
+        data = json.loads(cred_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
 
-    # Look for the token pattern - it starts with sk-ant- and is ~100+ chars
-    import re
-    # The token might be split across lines, so join everything and search
-    # Remove all whitespace first to handle wrapped lines
-    collapsed = re.sub(r'\s+', ' ', clean)
+    def walk(node) -> Optional[str]:
+        if isinstance(node, str):
+            if node.startswith("sk-ant-oat") and len(node) >= 50:
+                return node
+            return None
+        if isinstance(node, dict):
+            for v in node.values():
+                t = walk(v)
+                if t:
+                    return t
+        elif isinstance(node, list):
+            for v in node:
+                t = walk(v)
+                if t:
+                    return t
+        return None
 
-    # Look for sk-ant-oat followed by base64-ish characters
-    token_match = re.search(r'(sk-ant-oat\S+)', collapsed)
-    if token_match:
-        # Clean any remaining whitespace from the token itself
-        token = re.sub(r'\s', '', token_match.group(1))
-        if len(token) >= 50:  # Tokens are quite long
-            return token
-
-    # Fallback: look for any long string without spaces (old behavior)
-    for line in reversed(text.splitlines()):
-        line = line.strip()
-        if not line or " " in line or line.startswith("http"):
-            continue
-        if len(line) >= 20:
-            return line
-    return None
+    return walk(data)
 
 
 # --- persistence ----------------------------------------------------------------
@@ -288,12 +311,7 @@ def _credentials_file_has_token() -> bool:
     """Look for *real* token content, not just an empty stub. The `claude`
     installer (and any prior aborted login) can leave behind ~/.claude/ or an
     empty credentials file; existence alone isn't enough."""
-    cred_dir = os.environ.get("CLAUDE_CONFIG_DIR")
-    cred_path = (
-        Path(cred_dir) / ".credentials.json"
-        if cred_dir
-        else Path(os.path.expanduser("~/.claude/.credentials.json"))
-    )
+    cred_path = _credentials_path()
     if not cred_path.exists():
         return False
     try:

@@ -149,6 +149,13 @@ class LoginSession:
         )
 
     def complete(self, code: str) -> str:
+        # The Ink-based TUI puts stdin in raw mode (ICRNL disabled) and treats
+        # \r as Enter — \n is buffered as a literal char and never submits.
+        cred_path = _credentials_path()
+        cred_initial_mtime = (
+            cred_path.stat().st_mtime if cred_path.exists() else 0.0
+        )
+
         with self.lock:
             if (
                 not self.proc
@@ -160,26 +167,43 @@ class LoginSession:
                     "No active login session. Start one first. "
                     f"(state: {state}; output: {self.buffer[:300] or '(empty)'})"
                 )
-            os.write(self.master_fd, (code.strip() + "\n").encode())
+            os.write(self.master_fd, (code.strip() + "\r").encode())
 
+        # Watch for credentials.json to update — that's the real success
+        # signal. The TUI commonly lingers after auth waiting for a keypress
+        # to dismiss, so we don't depend on the subprocess exiting.
         out = self.buffer
-        deadline = time.monotonic() + 60
+        deadline = time.monotonic() + 30
+        succeeded = False
         while time.monotonic() < deadline and self.proc.poll() is None:
-            chunk = self._read_available(timeout=0.5)
+            chunk = self._read_available(timeout=0.25)
             if chunk:
                 out += chunk
+            if cred_path.exists() and cred_path.stat().st_mtime > cred_initial_mtime:
+                # Give the writer a beat to finish; the file may be replaced
+                # via rename and we want the new contents stable.
+                time.sleep(0.3)
+                succeeded = True
+                break
 
-        # Drain any remaining output after exit.
-        for _ in range(20):
+        # Drain any final output, then tear down the subprocess regardless
+        # of whether it would have exited on its own.
+        for _ in range(10):
             chunk = self._read_available(timeout=0.1)
             if not chunk:
                 break
             out += chunk
 
-        try:
-            self.proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            self.proc.kill()
+        if self.proc.poll() is None:
+            try:
+                self.proc.terminate()
+                self.proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                try:
+                    self.proc.kill()
+                    self.proc.wait(timeout=2)
+                except (ProcessLookupError, subprocess.TimeoutExpired):
+                    pass
 
         if self.master_fd is not None:
             try:
@@ -188,23 +212,22 @@ class LoginSession:
                 pass
             self.master_fd = None
 
-        rc = self.proc.returncode
-        if rc != 0:
-            raise RuntimeError(
-                f"`claude setup-token` exited with code {rc}. "
-                "The auth code may be wrong or expired.\n"
-                f"--- output ---\n{ANSI_RE.sub('', out)[:1000] or '(empty)'}"
-            )
-
         token = _read_token_from_credentials()
-        if not token:
-            raise RuntimeError(
-                "`claude setup-token` succeeded but no Claude OAuth token was "
-                f"found in {_credentials_path()}. The CLI's credential storage "
-                "format may have changed.\n"
-                f"--- output ---\n{ANSI_RE.sub('', out)[:1000] or '(empty)'}"
-            )
-        return token
+        if token:
+            return token
+
+        rc = self.proc.returncode
+        hint = (
+            "credentials.json was not updated — the auth code may be wrong, "
+            "expired, or already used. Try logging in again with a fresh code."
+            if not succeeded
+            else "credentials.json was updated but did not contain a recognizable token."
+        )
+        raise RuntimeError(
+            f"`claude setup-token` did not yield a usable token (rc={rc}). "
+            f"{hint}\n"
+            f"--- output ---\n{ANSI_RE.sub('', out)[:1000] or '(empty)'}"
+        )
 
 
 _session = LoginSession()

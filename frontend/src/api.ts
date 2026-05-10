@@ -46,6 +46,11 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify(body),
       }),
+    delete: (id: string, confirm: string) =>
+      request<void>(
+        `/api/accounts/${encodeURIComponent(id)}?confirm=${encodeURIComponent(confirm)}`,
+        { method: "DELETE" },
+      ),
   },
   transactions: {
     list: (params: {

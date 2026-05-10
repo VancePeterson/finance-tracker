@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -17,6 +18,13 @@ def get_conn():
         yield conn
     finally:
         conn.close()
+
+
+def _trailing_digits(name: str) -> str:
+    # Match the last run of digits in the name (SimpleFIN names typically
+    # end with the masked last-4, e.g. "Checking ...4752").
+    m = re.search(r"(\d+)\D*$", name or "")
+    return m.group(1) if m else ""
 
 
 class AccountPatch(BaseModel):
@@ -60,3 +68,21 @@ def update_account(account_id: str, patch: AccountPatch, conn=Depends(get_conn))
         (account_id,),
     ).fetchone()
     return Account(**{**dict(row), "excluded_from_totals": bool(row["excluded_from_totals"])})
+
+
+@router.delete("/{account_id}", status_code=204)
+def delete_account(account_id: str, confirm: str, conn=Depends(get_conn)) -> None:
+    row = conn.execute("SELECT name FROM accounts WHERE id = ?", (account_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Account not found")
+    name = row["name"] or ""
+    digits = _trailing_digits(name)
+    expected = digits or name
+    if (confirm or "").strip() != expected:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Confirmation does not match. Expected: {expected!r}",
+        )
+    conn.execute("DELETE FROM transactions WHERE account_id = ?", (account_id,))
+    conn.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
+    conn.commit()

@@ -21,6 +21,11 @@ ADDITIONAL_ACCOUNT_COLUMNS: dict[str, str] = {
     "excluded_from_totals": "INTEGER NOT NULL DEFAULT 0",
 }
 
+# Columns added to the categories table.
+ADDITIONAL_CATEGORY_COLUMNS: dict[str, str] = {
+    "excluded_from_reports": "INTEGER NOT NULL DEFAULT 0",
+}
+
 
 def connect() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -41,6 +46,10 @@ def migrate(conn: sqlite3.Connection) -> None:
     for col, decl in ADDITIONAL_ACCOUNT_COLUMNS.items():
         if col not in acct_cols:
             conn.execute(f"ALTER TABLE accounts ADD COLUMN {col} {decl}")
+    cat_cols = {row[1] for row in conn.execute("PRAGMA table_info(categories)")}
+    for col, decl in ADDITIONAL_CATEGORY_COLUMNS.items():
+        if col not in cat_cols:
+            conn.execute(f"ALTER TABLE categories ADD COLUMN {col} {decl}")
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_transactions_category "
         "ON transactions(category_id)"

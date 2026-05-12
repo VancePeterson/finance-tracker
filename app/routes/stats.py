@@ -47,6 +47,8 @@ def by_category(
     conn=Depends(get_conn),
 ) -> list[CategorySpend]:
     where, params = _date_window(conn, start, end)
+    # Exclude categories marked as excluded_from_reports
+    where.append("COALESCE(c.excluded_from_reports, 0) = 0")
     sql = f"""
         SELECT t.category_id, c.name AS category_name, c.color,
                -SUM(t.amount) AS total,
@@ -78,6 +80,8 @@ def monthly(
     conn=Depends(get_conn),
 ) -> list[MonthlySpend]:
     where, params = _date_window(conn, start, end)
+    # Exclude categories marked as excluded_from_reports
+    where.append("COALESCE(c.excluded_from_reports, 0) = 0")
     sql = f"""
         SELECT strftime('%Y-%m', t.posted, 'unixepoch') AS month,
                t.category_id,

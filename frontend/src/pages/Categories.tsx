@@ -95,6 +95,7 @@ export default function Categories() {
                   <th>Name</th>
                   <th>Color</th>
                   <th className="right">Txns</th>
+                  <th title="Include in reports/charts">Reports</th>
                   <th></th>
                 </tr>
               </thead>
@@ -121,6 +122,19 @@ export default function Categories() {
                       />
                     </td>
                     <td className="amount">{c.transaction_count}</td>
+                    <td style={{ textAlign: "center" }}>
+                      <input
+                        type="checkbox"
+                        checked={!c.excluded_from_reports}
+                        onChange={(e) =>
+                          updateCategory.mutate({
+                            id: c.id,
+                            body: { excluded_from_reports: !e.target.checked },
+                          })
+                        }
+                        title={c.excluded_from_reports ? "Excluded from reports" : "Included in reports"}
+                      />
+                    </td>
                     <td>
                       <button
                         className="danger"

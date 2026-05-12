@@ -20,6 +20,7 @@ class CategoryPatch(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=80)
     color: Optional[str] = Field(default=None, max_length=16)
     parent_id: Optional[int] = None
+    excluded_from_reports: Optional[bool] = None
 
 
 class Category(BaseModel):
@@ -27,6 +28,7 @@ class Category(BaseModel):
     name: str
     color: Optional[str] = None
     parent_id: Optional[int] = None
+    excluded_from_reports: bool = False
     transaction_count: int = 0
 
 

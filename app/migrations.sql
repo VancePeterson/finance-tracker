@@ -31,11 +31,12 @@ CREATE INDEX IF NOT EXISTS idx_transactions_posted  ON transactions(posted);
 CREATE INDEX IF NOT EXISTS idx_transactions_account ON transactions(account_id);
 
 CREATE TABLE IF NOT EXISTS categories (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  name       TEXT NOT NULL UNIQUE,
-  color      TEXT,
-  parent_id  INTEGER REFERENCES categories(id) ON DELETE SET NULL,
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  name                  TEXT NOT NULL UNIQUE,
+  color                 TEXT,
+  parent_id             INTEGER REFERENCES categories(id) ON DELETE SET NULL,
+  excluded_from_reports INTEGER NOT NULL DEFAULT 0,
+  created_at            INTEGER NOT NULL DEFAULT (strftime('%s','now'))
 );
 
 CREATE TABLE IF NOT EXISTS merchant_rules (

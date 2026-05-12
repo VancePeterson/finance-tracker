@@ -40,6 +40,7 @@ export interface Category {
   name: string;
   color?: string | null;
   parent_id?: number | null;
+  excluded_from_reports: boolean;
   transaction_count: number;
 }
 

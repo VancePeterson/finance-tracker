@@ -21,6 +21,7 @@ def list_categories(conn=Depends(get_conn)) -> list[Category]:
     rows = conn.execute(
         """
         SELECT c.id, c.name, c.color, c.parent_id,
+               COALESCE(c.excluded_from_reports, 0) AS excluded_from_reports,
                (SELECT COUNT(*) FROM transactions WHERE category_id = c.id) AS transaction_count
           FROM categories c
          ORDER BY c.name
@@ -66,6 +67,9 @@ def update_category(
     if patch.parent_id is not None or "parent_id" in patch.model_fields_set:
         sets.append("parent_id = ?")
         params.append(patch.parent_id)
+    if patch.excluded_from_reports is not None:
+        sets.append("excluded_from_reports = ?")
+        params.append(1 if patch.excluded_from_reports else 0)
     if sets:
         params.append(category_id)
         conn.execute(f"UPDATE categories SET {', '.join(sets)} WHERE id = ?", params)
@@ -74,6 +78,7 @@ def update_category(
     row = conn.execute(
         """
         SELECT c.id, c.name, c.color, c.parent_id,
+               COALESCE(c.excluded_from_reports, 0) AS excluded_from_reports,
                (SELECT COUNT(*) FROM transactions WHERE category_id = c.id) AS transaction_count
           FROM categories c
          WHERE c.id = ?

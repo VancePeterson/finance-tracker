@@ -14,6 +14,7 @@ DEFAULTS: dict[str, str] = {
     "sync_interval_minutes": "360",
     "timezone": "America/New_York",
     "include_pending": "1",
+    "include_uncategorized": "1",
     "default_dashboard_range": "month",
 }
 

@@ -49,6 +49,9 @@ def by_category(
     where, params = _date_window(conn, start, end)
     # Exclude categories marked as excluded_from_reports
     where.append("COALESCE(c.excluded_from_reports, 0) = 0")
+    # Exclude uncategorized transactions if setting is disabled
+    if not S.get_bool(conn, "include_uncategorized"):
+        where.append("t.category_id IS NOT NULL")
     sql = f"""
         SELECT t.category_id, c.name AS category_name, c.color,
                -SUM(t.amount) AS total,
@@ -82,6 +85,9 @@ def monthly(
     where, params = _date_window(conn, start, end)
     # Exclude categories marked as excluded_from_reports
     where.append("COALESCE(c.excluded_from_reports, 0) = 0")
+    # Exclude uncategorized transactions if setting is disabled
+    if not S.get_bool(conn, "include_uncategorized"):
+        where.append("t.category_id IS NOT NULL")
     sql = f"""
         SELECT strftime('%Y-%m', t.posted, 'unixepoch') AS month,
                t.category_id,

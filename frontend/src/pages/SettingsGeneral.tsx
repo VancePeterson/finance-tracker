@@ -302,6 +302,15 @@ export default function SettingsGeneral() {
           />
           Include pending transactions in spending totals
         </label>
+
+        <label className="row" style={{ gap: 8, marginTop: 8 }}>
+          <input
+            type="checkbox"
+            checked={form.include_uncategorized}
+            onChange={(e) => set("include_uncategorized", e.target.checked)}
+          />
+          Include uncategorized transactions in spending totals
+        </label>
       </div>
 
       {/* Account exclusions */}
@@ -352,6 +361,7 @@ export default function SettingsGeneral() {
               sync_interval_minutes: form.sync_interval_minutes,
               timezone: form.timezone,
               include_pending: form.include_pending,
+              include_uncategorized: form.include_uncategorized,
               default_dashboard_range: form.default_dashboard_range,
             })
           }

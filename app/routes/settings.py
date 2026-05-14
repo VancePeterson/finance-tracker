@@ -27,6 +27,7 @@ class GeneralSettings(BaseModel):
     last_synced_at: Optional[int]
     timezone: str
     include_pending: bool
+    include_uncategorized: bool
     default_dashboard_range: str
 
 
@@ -35,6 +36,7 @@ class GeneralSettingsPatch(BaseModel):
     sync_interval_minutes: Optional[int] = Field(default=None, ge=5, le=24 * 60)
     timezone: Optional[str] = None
     include_pending: Optional[bool] = None
+    include_uncategorized: Optional[bool] = None
     default_dashboard_range: Optional[str] = Field(
         default=None, pattern="^(month|ytd|12m)$"
     )
@@ -48,6 +50,7 @@ def _read(conn) -> GeneralSettings:
         last_synced_at=int(last_str) if last_str else None,
         timezone=S.get(conn, "timezone") or "America/New_York",
         include_pending=S.get_bool(conn, "include_pending"),
+        include_uncategorized=S.get_bool(conn, "include_uncategorized"),
         default_dashboard_range=S.get(conn, "default_dashboard_range") or "month",
     )
 
@@ -74,6 +77,8 @@ def update_general(patch: GeneralSettingsPatch, conn=Depends(get_conn)) -> Gener
         S.set_(conn, "timezone", patch.timezone or "America/New_York")
     if "include_pending" in fields:
         S.set_(conn, "include_pending", "1" if patch.include_pending else "0")
+    if "include_uncategorized" in fields:
+        S.set_(conn, "include_uncategorized", "1" if patch.include_uncategorized else "0")
     if "default_dashboard_range" in fields:
         S.set_(conn, "default_dashboard_range", patch.default_dashboard_range or "month")
     conn.commit()

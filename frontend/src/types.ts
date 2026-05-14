@@ -16,6 +16,7 @@ export interface GeneralSettings {
   last_synced_at: number | null;
   timezone: string;
   include_pending: boolean;
+  include_uncategorized: boolean;
   default_dashboard_range: "month" | "ytd" | "12m";
 }
 
